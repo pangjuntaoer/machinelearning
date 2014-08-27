@@ -1,0 +1,86 @@
+#coding=utf-8
+from math import log
+import operator
+#计算香农值（信息熵）
+#-p(i)E log(p(i))  其中p(i)为第i个类别出现的概率
+def calculateShannonEnt(dataSet):
+    numEntries=len(dataSet)
+    labelCounts={}
+    for featureVec in dataSet:
+        currentLabel=featureVec[-1]
+        if currentLabel not in labelCounts.keys():
+            labelCounts[currentLabel]=0
+            labelCounts[currentLabel] +=1
+    shannonEnt = 0.0
+    for key in labelCounts:
+       prob = float(labelCounts[key])/numEntries
+       shannonEnt -=prob*log(prob, 2)
+    return shannonEnt
+    
+def createDataSet():
+    dataSet=[[1, 1, 'yes'], 
+                    [1, 1, 'yes'], 
+                    [1, 0, 'no'], 
+                    [0, 1, 'no'], 
+                    [0, 1, 'no']]
+    labels=['no surfacing', 'flipper']
+    return dataSet, labels
+
+#按给定特征划分数据集
+def splitDataSet(dataSet, axis, value):
+    retData=[]
+    for featVec in dataSet:
+        if featVec[axis]==value:
+            readuceVec=featVec[:axis]
+            readuceVec.extend(featVec[axis+1:])
+            retData.append(readuceVec)
+    return retData
+#选择最好属性的数据划分方式，具体计算方法可以参考《数据挖掘概念技术》范明译本   
+def chooseBestFeatureToSplit(dataSet):
+    numFeatures = len(dataSet[0])-1
+    baseEntropy = calculateShannonEnt(dataSet)
+    baseInfoGain=0.0
+    baseFeature = -1
+    for i in range(numFeatures):
+        featList=[example[i] for example in dataSet]
+        uniqueVals = set(featList)
+        newEntroy = 0.0
+	#依次按某个属性的各个属性值划分数据集，计算该属性的信息商
+        for value in uniquesVals:
+            subDataSet = splitDataSet(dataSet,i, value)
+            prob = len(subDataSet)/float(len(dataSet))
+            newEntroy += prob*calculateShannonEnt(subDataSet)
+        infoGain = baseEntroy - newEntroy
+        if(infoGain>baseInfoGain):
+            baseInfoGain = infoGain
+            bestFeature=i
+    return bestFeature
+ # 多数表决决定叶子节点,属性为空时候
+def majorityCnt(classList):
+    classCount={}
+    for vote in classList:
+        if vote not in classCount.keys():classCount[vote]=0
+        classCount[vote]+=1
+    sortedClassCount=sorted(classCount.iteritems(), key=operator.itemgetter(1), reverse=True)
+    return sortedClassCount[0][0]
+    
+#递归构造决策树
+def createTree(dataSet, labels):
+    #dataSet最后一列	
+    classList= [example[-1] for example in dataSet]
+    #判断属性值是否和属于该属性记录总数一样
+    if classList.count(classList[0])==len(classList):
+        return classList[0]
+    #该实例只有一个属性（不能再划分）
+    if len(dataSet[0])==1:
+        return majorityCnt(classList)
+    bestFeat = chooseBestFeatureToSplit(dataSet)
+    bestFeatLabel = labels[bestFeat]
+    myTree={bestFeatLabel:{}}
+    del(labels[bestFeat])
+    featValue=[example[bestFeat] for example in dataSet]
+    uniqueVals=set(featValue)
+    for value in uniqueVals:
+        subLabels=labels[:]
+        myTree[bestFeatLabel][value]=createTree(splitDataSet(dataSet, bestFeat, value), subLabels)
+    return myTree
